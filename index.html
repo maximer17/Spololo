@@ -238,10 +238,14 @@ select.field,.field{width:100%;padding:11px;border-radius:var(--rs);border:0;bac
 .prow{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 4px;border-radius:var(--rs);background:var(--surface);transition:transform .15s ease;position:relative}
 .prow.dragging{transition:none;z-index:5;box-shadow:0 10px 24px var(--shadow)}
 .handle{width:34px;align-self:stretch;display:grid;place-items:center;color:var(--muted);cursor:grab;touch-action:none;flex:none}
-.prow .pn{flex:1;min-width:0;border:0;background:none;font-weight:700;font-size:16px;padding:8px 0}
+.pbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.pctl{display:flex;align-items:center;gap:6px}
+.prow .pn{width:100%;min-width:0;border:0;background:none;font-weight:700;font-size:16px;padding:6px 0}
 .prow .pn:focus{outline:none;border-bottom:2px solid var(--b)}
 .prow .ps{width:34px;text-align:center;border:0;background:var(--surface2);border-radius:8px;padding:7px 2px;font-weight:700}
 .prow .pr{width:60px;text-align:center;border:0;background:var(--surface2);border-radius:8px;padding:7px 2px;font-weight:700}
+.pstar{width:32px;height:32px;border:0;background:none;font-size:20px;color:var(--muted);cursor:pointer;flex:none;padding:0}
+.pstar.on{color:var(--xp);text-shadow:0 0 10px color-mix(in srgb,var(--xp) var(--g),transparent)}
 .prow .x{color:var(--muted);font-weight:700;font-size:13px}
 
 /* barre de menu en haut (option, pour le mode écran d'accueil) */
@@ -433,6 +437,36 @@ const IC = {
 };
 const scrollTop = () => { const s = $("#scroller"); if (s) s.scrollTop = 0; };
 
+/* ---------- base d'exercices ---------- */
+const EX_DB = [
+  ["Pecs", ["Développé couché barre","Développé couché haltères","Développé couché machine","Développé incliné barre","Développé incliné haltères","Développé incliné machine","Développé décliné","Chest press machine","Écarté haltères","Écarté poulie vis-à-vis","Écarté poulie bas vers haut","Pec deck","Pompes","Pompes lestées","Dips assistés","Dips machine","Dips"]],
+  ["Dos", ["Tractions","Tractions assistées","Tractions supination","Tirage vertical","Tirage vertical machine","Tirage horizontal","Rowing barre","Rowing haltère","Rowing machine","Rowing T-bar","Machine pull-over","Pull-over poulie haute","Pull-over haltère","Soulevé de terre","Extension lombaires"]],
+  ["Épaules", ["Développé militaire barre","Développé épaules haltères","Développé épaules machine","Développé Arnold","Élévations latérales","Élévations latérales poulie","Machine élévations latérales","Élévations frontales","Oiseau haltères","Oiseau machine","Face pull","Shrugs"]],
+  ["Biceps", ["Curl classique","Curl barre EZ","Curl pupitre","Curl pupitre machine","Curl poulie","Curl incliné haltères","Curl concentré","Curl marteau","Curl marteau poulie corde"]],
+  ["Triceps", ["Extension triceps poulie corde","Extension poulie barre droite","Extension nuque haltère","Extension nuque poulie","Extension triceps machine","Barre au front","Pompes serrées","Kickback haltère"]],
+  ["Jambes", ["Squat","Goblet squat","Hack squat machine","Presse à cuisses","Presse à cuisses pieds hauts","Fentes marchées","Fentes bulgares","Step-up sur banc","Leg extension","Leg curl","Leg curl assis","Soulevé de terre roumain","Good morning machine","Mollets debout","Mollets assis"]],
+  ["Fessiers", ["Hip thrust","Pont fessier","Abducteurs machine","Kickback poulie"]],
+  ["Abdos", ["Relevés de jambes suspendu","Relevés de genoux suspendu","Crunch machine","Crunch poulie à genoux","Crunch","Machine rotation du buste","Roue abdominale","Gainage planche","Gainage latéral","Pallof press","Russian twist"]],
+  ["Avant-bras & grip", ["Curl poignets","Farmer walk","Suspension à la barre"]]
+];
+const GROUPS = [...EX_DB.map(g => g[0]), "Mes exos"];
+function library(){ const m = new Map(); EX_DB.forEach(([g, list]) => list.forEach(n => m.set(norm(n), {name:n, g})));
+  const add = n => { if (n && !m.has(norm(n))) m.set(norm(n), {name:n, g:"Mes exos"}); };
+  Object.values(S.program).forEach(p => p.exercises.forEach(e => { add(e.name); (e.alts||[]).forEach(add); }));
+  S.workouts.forEach(w => (w.entries||[]).forEach(e => add(e.name))); (S.library||[]).forEach(add);
+  return [...m.values()]; }
+function exSelect(id, sel){ const lib = library();
+  return `<select id="${id}" class="field">${GROUPS.map(g => { const xs = lib.filter(x => x.g === g).sort((a,b) => a.name.localeCompare(b.name,"fr")); return xs.length ? `<optgroup label="${esc(g)}">${xs.map(x => `<option ${sel && norm(sel)===norm(x.name)?"selected":""}>${esc(x.name)}</option>`).join("")}</optgroup>` : ""; }).join("")}</select>`; }
+let pickCb = null;
+function openPicker(title, cb){ pickCb = cb;
+  openSheet(`<h2>${esc(title)}</h2><input id="pickQ" placeholder="Chercher ou créer un exo" autocomplete="off"><div id="pickList" class="list"></div><button class="btn ghost block" data-act="closeSheet">Annuler</button>`); renderPick(""); }
+function renderPick(q){ const lib = library(), nq = norm(q), f = lib.filter(x => !nq || norm(x.name).includes(nq)); let h = "";
+  if (q.trim() && !lib.some(x => norm(x.name) === nq)) h += `<button class="opt" data-act="pickEx" data-n="${esc(q.trim())}"><b>＋ Créer « ${esc(q.trim())} »</b></button>`;
+  GROUPS.forEach(g => { const xs = f.filter(x => x.g === g).sort((a,b) => a.name.localeCompare(b.name,"fr")); if (xs.length) h += `<span class="label" style="margin-top:6px">${esc(g)}</span>` + xs.map(x => `<button class="opt" data-act="pickEx" data-n="${esc(x.name)}">${esc(x.name)}</button>`).join(""); });
+  $("#pickList").innerHTML = h || `<div class="empty">Rien trouvé</div>`; }
+function remember(n){ if (!library().some(x => norm(x.name) === norm(n))){ S.library = [...(S.library||[]), n]; saveState(); } }
+const isAbs = n => (EX_DB.find(g => g[0] === "Abdos")[1]).some(x => norm(x) === norm(n));
+
 /* ---------- état ---------- */
 let S = { program: withIds(clone(DEFAULT_PROGRAM)), settings:{appName:"Spololo", theme:"auto", palette:"neon", font:"chakra", avatar:"", v:2}, goals:[], workouts:[], current:null };
 let connectDone = false;
@@ -464,7 +498,7 @@ function write(ref, op, data){
 }
 function fail(e){ console.warn("sync", e); syncErr = true; setSync();
   if (e && e.code === "quota_exceeded") toast("⚠️","Stockage plein","Supprime d'anciennes séances dans le calendrier."); }
-function saveState(){ saveLocal(); if (mode==="cloud") write(refs.state, "set", {program:S.program, settings:S.settings, goals:S.goals}); }
+function saveState(){ saveLocal(); if (mode==="cloud") write(refs.state, "set", {program:S.program, settings:S.settings, goals:S.goals, library:S.library||[]}); }
 let stateTimer = null; function saveStateSoon(){ saveLocal(); clearTimeout(stateTimer); stateTimer = setTimeout(saveState, 900); }
 let curTimer = null;
 function saveCurrent(now){ saveLocal(); if (mode!=="cloud") return; clearTimeout(curTimer);
@@ -488,7 +522,7 @@ async function connectInner(){
     refs.wk = refs.state.collection("workouts");
     const timeout = new Promise((_,rej) => setTimeout(() => rej({code:"timeout"}), 10000));
     const [st, cur, wks] = await Promise.race([Promise.all([refs.state.get(), refs.cur.get(), refs.wk.orderBy("date","desc").limit(1000).get()]), timeout]);
-    if (st.exists){ const x = st.data(); if (x.program) S.program = clone(x.program); if (x.settings) S.settings = {...S.settings, v:undefined, ...x.settings}; if (Array.isArray(x.goals)) S.goals = clone(x.goals); }
+    if (st.exists){ const x = st.data(); if (x.program) S.program = clone(x.program); if (x.settings) S.settings = {...S.settings, v:undefined, ...x.settings}; if (Array.isArray(x.goals)) S.goals = clone(x.goals); if (Array.isArray(x.library)) S.library = clone(x.library); }
     const cloudW = wks.docs.map(x => clone(x.data()));
     const ids = new Set(cloudW.map(w => w.id));
     const localOnly = S.workouts.filter(w => !ids.has(w.id));
@@ -552,7 +586,9 @@ function topExercises(n){ const c = {}; S.workouts.forEach(w => (w.entries||[]).
 function nextAch(){ const s = stats(), un = unlocked(); let best = null;
   ACHS.forEach(a => { if (un.has(a.id) || !a.p) return; const [cur, tgt] = a.p(s), r = Math.min(.99, cur/tgt); if (r > 0 && (!best || r > best.r)) best = {a, r}; });
   if (!best){ const a = ACHS.find(x => !un.has(x.id) && x.p); if (a) best = {a, r:0}; } return best; }
-function goalValue(g){ return g.kind === "auto" ? bestKg(g.exercise) : g.current; }
+function bestReps(name){ const n = norm(name); let b = null;
+  S.workouts.forEach(w => (w.entries||[]).forEach(e => { if (norm(e.name) === n) (e.sets||[]).forEach(s => { if (typeof s.reps === "number" && (b == null || s.reps > b)) b = s.reps; }); })); return b; }
+function goalValue(g){ return g.kind === "auto" ? bestKg(g.exercise) : g.kind === "reps" ? bestReps(g.exercise) : g.current; }
 function checkGoals(){ const hits = []; S.goals.forEach(g => { const v = goalValue(g); if (!g.done && v != null && v >= g.target){ g.done = true; g.doneAt = new Date().toISOString(); hits.push(g); } }); return hits; }
 
 /* ---------- séance ---------- */
@@ -732,11 +768,11 @@ function viewSession(){
     const last = lastFor(e.name), [, hi] = repsRange(e.target);
     const up = last && hi && last.e.sets.length && last.e.sets.every(s => typeof s.reps === "number" && s.reps >= hi) && last.e.sets.some(s => s.kg != null);
     const names = []; [e.name, ...(e.alts||[]), ...(e.bonus ? ABS_POOL.map(x => x.name) : [])].forEach(n => { if (!names.some(m => norm(m) === norm(n))) names.push(n); });
-    const star = e.bonus || e.opt ? `<button class="star" data-act="star" data-i="${i}" aria-label="${e.on ? "Je ne le fais pas" : "Je le fais"}">${e.on ? "★" : "☆"}</button>` : "";
+    const star = e.opt ? `<button class="star" data-act="star" data-i="${i}" aria-label="${e.on ? "Je ne le fais pas" : "Je le fais"}">${e.on ? "★" : "☆"}</button>` : "";
     h += `<div class="ex ${e.on && e.done >= e.planned ? "full" : ""} ${e.on ? "" : "off"}">
-      <div class="exhead">${star}<label class="namesel"><select data-swap="${i}" aria-label="Changer d'exercice">${names.map(n => `<option ${norm(n)===norm(e.name)?"selected":""}>${esc(n)}</option>`).join("")}<option value="__other">✏️ Autre exo…</option></select></label>
+      <div class="exhead">${star}<label class="namesel"><select data-swap="${i}" aria-label="Changer d'exercice">${names.map(n => `<option ${norm(n)===norm(e.name)?"selected":""}>${esc(n)}</option>`).join("")}<option value="__other">📚 Autre exo…</option></select></label>
         ${e.tip ? `<button class="qbtn" data-act="tip" data-i="${i}" aria-label="Consigne">?</button>` : ""}</div>
-      <div class="meta">${esc(e.target)} reps${e.bonus ? " · bonus abdos" : e.opt ? " · optionnel" : ""}${up ? ` · <span class="up2">▲ tente +2,5 kg</span>` : ""}</div>`;
+      <div class="meta">${esc(e.target)} reps${e.opt ? " · optionnel" : ""}${up ? ` · <span class="up2">▲ tente +2,5 kg</span>` : ""}</div>`;
     if (!e.on){ h += `<div class="offmsg">Pas au programme aujourd'hui. Touche ☆ pour le remettre.</div></div>`; return; }
     h += `<div class="load"><label class="fld"><input id="kg-${i}" data-e="kg" data-i="${i}" inputmode="decimal" placeholder="–" value="${e.kg!=null ? fmt(e.kg) : ""}" aria-label="Charge"><span>kg</span></label>
         <label class="fld ${e.rp==="max"?"isMax":""}"><input id="rp-${i}" data-e="rp" data-i="${i}" inputmode="numeric" placeholder="${e.rp==="max"?"":"–"}" value="${e.rp==="max" ? "" : (e.rp ?? "")}" aria-label="Répétitions"><span>reps</span><button class="maxbtn ${e.rp==="max"?"on":""}" data-act="maxReps" data-i="${i}" aria-label="Reps jusqu'à l'échec">MAX</button></label></div>
@@ -798,7 +834,7 @@ function viewGoals(){
   else h += `<div class="list">${S.goals.map((g,i) => { const v = goalValue(g), pct = v == null ? 0 : Math.min(100, Math.round(v/g.target*100)); const u = g.unit === "reps" ? "" : " "+g.unit;
     return `<div class="goal ${g.done?"done":""}"><div class="row"><b class="grow">${g.done?"✅ ":""}${esc(g.title)}</b><button class="del" data-act="delGoal" data-i="${i}" aria-label="Supprimer l'objectif">${IC.trash}</button></div>
       <div class="gbar"><i style="width:${pct}%"></i></div>
-      <div class="row"><span class="note grow tn">${v==null?"–":fmt(v)} / ${fmt(g.target)}${u}${g.kind==="auto" ? " · suit tes séances" : ""}</span>
+      <div class="row"><span class="note grow tn">${v==null?"–":fmt(v)} / ${fmt(g.target)}${u}${g.kind!=="manual" ? " · suit tes séances" : ""}</span>
       ${g.kind==="manual" && !g.done ? `<button class="mini" data-act="goalMinus" data-i="${i}">−1</button><button class="mini" data-act="goalPlus" data-i="${i}">+1</button><button class="mini" data-act="goalSet" data-i="${i}">Modifier</button>` : ""}</div></div>`; }).join("")}</div>`;
   h += `</div>`;
   const li = levelInfo(totalXP());
@@ -814,14 +850,14 @@ function viewProgram(){
   const p = S.program[progTab];
   let h = `<div class="seg">${["A","B","C"].map(k => `<button class="${k===progTab?"on":""}" style="${sc(k)}" data-act="progTab" data-k="${k}">Séance ${k}</button>`).join("")}</div>
     <input id="sname" class="field" data-pf="sname" value="${esc(p.name)}" aria-label="Nom de la séance">
-    <div class="note">Maintiens ≡ et glisse pour changer l'ordre. Touche un nom pour le modifier.</div>
+    <div class="note">Maintiens ≡ et glisse pour changer l'ordre. Touche un nom pour le modifier. ★ = exo optionnel : tu choisiras pendant la séance si tu le fais.</div>
     <div class="plist" id="plist">`;
   p.exercises.forEach((e, i) => {
     h += `<div class="prow" data-i="${i}"><span class="handle" aria-label="Déplacer">${IC.grip}</span>
-      <input class="pn" id="pn-${i}" data-pf="name" data-i="${i}" value="${esc(e.name)}" aria-label="Nom de l'exercice">
-      <input class="ps" id="ps-${i}" data-pf="sets" data-i="${i}" inputmode="numeric" value="${e.sets}" aria-label="Séries"><span class="x">×</span>
-      <input class="pr" id="pr-${i}" data-pf="reps" data-i="${i}" value="${esc(e.reps)}" aria-label="Répétitions">
-      <button class="del" data-act="pDel" data-i="${i}" aria-label="Supprimer">${IC.trash}</button></div>`;
+      <div class="pbody"><input class="pn" id="pn-${i}" data-pf="name" data-i="${i}" value="${esc(e.name)}" aria-label="Nom de l'exercice">
+      <div class="pctl"><input class="ps" id="ps-${i}" data-pf="sets" data-i="${i}" inputmode="numeric" value="${e.sets}" aria-label="Séries"><span class="x">séries ×</span>
+      <input class="pr" id="pr-${i}" data-pf="reps" data-i="${i}" value="${esc(e.reps)}" aria-label="Répétitions"><span class="x grow">reps</span>
+      <button class="pstar ${e.opt?"on":""}" data-act="pOpt" data-i="${i}" aria-label="${e.opt?"Optionnel":"Obligatoire"}">${e.opt?"★":"☆"}</button><button class="del" data-act="pDel" data-i="${i}" aria-label="Supprimer">${IC.trash}</button></div></div></div>`;
   });
   h += `</div><button class="btn ghost block" data-act="pAdd">+ Ajouter un exercice</button>
     <div class="foot"><button class="link" data-act="pReset">Remettre le programme de départ</button></div>`;
@@ -875,11 +911,9 @@ const A = {
   keepSwap: b => { const e = S.current.entries[+b.dataset.i];
     for (const k in S.program){ const ex = S.program[k].exercises.find(x => x.id === e.pid); if (ex){ const old = ex.name; ex.name = e.name; ex.alts = [old, ...(ex.alts||[]).filter(n => norm(n) !== norm(e.name) && norm(n) !== norm(old))]; ex.tip = ""; } }
     e.kept = true; saveState(); touch(); render(); toast("📋", "Programme mis à jour", e.name+" remplace l'ancien exo."); },
-  addEx: () => openSheet(`<h2>Ajouter un exo</h2><label class="label" for="newEx">Nom</label><input id="newEx" placeholder="ex. Pompes">
-    <div class="row"><div class="grow"><label class="label" for="newSets">Séries</label><input id="newSets" value="3" inputmode="numeric"></div><div class="grow"><label class="label" for="newReps">Reps</label><input id="newReps" value="10-12"></div></div>
-    <button class="btn block" data-act="addExGo">Ajouter</button>
-    <span class="label">Ou un abdo</span>${ABS_POOL.map((x,k) => `<button class="opt" data-act="addAbs" data-k="${k}"><span class="grow">${esc(x.name)}<small>${esc(x.reps)}</small></span></button>`).join("")}
-    <button class="btn ghost block" data-act="closeSheet">Annuler</button>`),
+  addEx: () => openPicker("Ajouter un exo", n => { const ex = Object.values(S.program).flatMap(q => q.exercises).find(x => norm(x.name) === norm(n));
+    S.current.entries.push(makeEntry({name:n, sets:ex ? ex.sets : 3, reps:ex ? ex.reps : "10-12", tip:ex ? ex.tip : "", alts:ex ? ex.alts : [], bonus:isAbs(n)})); touch(); render(); }),
+  pickEx: b => { const n = b.dataset.n; remember(n); const cb = pickCb; pickCb = null; closeSheet(); cb && cb(n); },
   addExGo: () => { const n = $("#newEx").value.trim(); if (!n) return; S.current.entries.push(makeEntry({name:n, sets:Math.max(1, parseInt($("#newSets").value)||3), reps:$("#newReps").value.trim()||"10"})); touch(); closeSheet(); render(); },
   addAbs: b => { const x = ABS_POOL[+b.dataset.k]; S.current.entries.push(makeEntry({name:x.name, sets:3, reps:x.reps, bonus:true})); touch(); closeSheet(); render(); },
   otherGo: b => { const v = $("#otherIn").value.trim(); if (v){ doSwap(+b.dataset.i, v); } closeSheet(); },
@@ -906,7 +940,8 @@ const A = {
   delW: b => openConfirm("Supprimer cette séance ?", "Elle disparaît du calendrier, des stats et des courbes.", "Supprimer", () => { S.workouts = S.workouts.filter(w => w.id !== b.dataset.id); removeWorkout(b.dataset.id); render(); }),
   progTab: b => { progTab = b.dataset.k; render(); },
   pDel: b => { const a = S.program[progTab].exercises, i = +b.dataset.i; openConfirm("Supprimer « "+a[i].name+" » ?", "Il sort du programme de la séance "+progTab+".", "Supprimer", () => { a.splice(i,1); saveState(); render(); }); },
-  pAdd: () => { S.program[progTab].exercises.push({id:newId(), name:"Nouvel exercice", sets:3, reps:"10-12", rest:R, alts:[]}); saveState(); render(); const el = $("#pn-"+(S.program[progTab].exercises.length-1)); if (el){ el.focus(); el.select(); } },
+  pAdd: () => openPicker("Ajouter à la séance "+progTab, n => { S.program[progTab].exercises.push({id:newId(), name:n, sets:3, reps:isAbs(n) ? "12-15" : "10-12", rest:R, alts:[], bonus:isAbs(n)}); saveState(); render(); }),
+  pOpt: b => { const e = S.program[progTab].exercises[+b.dataset.i]; e.opt = !e.opt; saveState(); render(); },
   pReset: () => openConfirm("Remettre le programme de départ ?", "Tes modifs du programme sont effacées. L'historique reste.", "Remettre", () => { S.program = withIds(clone(DEFAULT_PROGRAM)); saveState(); render(); }),
   rename: () => openSheet(`<h2>Nom de l'appli</h2><input id="nameIn" value="${esc(S.settings.appName||"Spololo")}" maxlength="24"><button class="btn block" data-act="renameGo">Valider</button><button class="btn ghost block" data-act="closeSheet">Annuler</button>`),
   renameGo: () => { const v = $("#nameIn").value.trim(); if (v){ S.settings.appName = v; saveState(); } closeSheet(); render(); },
@@ -930,14 +965,15 @@ const A = {
   font: b => { S.settings.font = b.dataset.k; saveState(); reSettings(); },
   avatar: b => { S.settings.avatar = S.settings.avatar === b.dataset.k ? "" : b.dataset.k; saveState(); reSettings(); },
   addGoal: () => openSheet(`<h2>Nouvel objectif</h2><label class="label" for="gT">Objectif</label><input id="gT" placeholder="ex. 10 tractions d'affilée">
-    <span class="label">Type</span><button class="opt" data-act="gKind" data-k="manual"><span class="grow">Je mets à jour moi-même<small>pompes, tractions, gainage…</small></span></button><button class="opt" data-act="gKind" data-k="auto"><span class="grow">Charge sur un exo<small>se met à jour tout seul avec tes séances</small></span></button>
+    <span class="label">Type</span><button class="opt" data-act="gKind" data-k="manual"><span class="grow">Je mets à jour moi-même<small>un score que tu notes toi-même</small></span></button><button class="opt" data-act="gKind" data-k="auto"><span class="grow">Charge sur un exo<small>ex. développé couché à 30 kg · suit tes séances</small></span></button><button class="opt" data-act="gKind" data-k="reps"><span class="grow">Répétitions sur un exo<small>ex. 10 tractions · suit tes séances</small></span></button>
     <div id="gMore"></div><button class="btn ghost block" data-act="closeSheet">Annuler</button>`),
-  gKind: b => { A._gk = b.dataset.k; const names = new Set(); Object.values(S.program).forEach(p => p.exercises.forEach(e => names.add(e.name)));
-    $("#gMore").innerHTML = (A._gk === "auto" ? `<label class="label" for="gEx">Exercice</label><select id="gEx" class="field">${[...names].map(n => `<option>${esc(n)}</option>`).join("")}</select>` : `<label class="label" for="gU">Unité</label><select id="gU" class="field"><option value="reps">répétitions</option><option value="s">secondes</option><option value="min">minutes</option><option value="kg">kg</option></select>`)
-      + `<label class="label" for="gN">Cible</label><input id="gN" inputmode="decimal" placeholder="${A._gk==="auto"?"kg":"nombre"}"><button class="btn block" data-act="gGo" style="margin-top:8px">Créer l'objectif</button>`;
+  gKind: b => { A._gk = b.dataset.k;
+    $("#gMore").innerHTML = (A._gk !== "manual" ? `<label class="label" for="gEx">Exercice</label>${exSelect("gEx")}` : `<label class="label" for="gU">Unité</label><select id="gU" class="field"><option value="reps">répétitions</option><option value="s">secondes</option><option value="min">minutes</option><option value="kg">kg</option></select>`)
+      + `<label class="label" for="gN">Cible</label><input id="gN" inputmode="decimal" placeholder="${A._gk==="auto"?"kg":A._gk==="reps"?"répétitions":"nombre"}"><button class="btn block" data-act="gGo" style="margin-top:8px">Créer l'objectif</button>`;
     document.querySelectorAll("#sheet .opt").forEach(o => o.style.boxShadow = o.dataset.k === A._gk ? "inset 0 0 0 2px var(--b)" : ""); },
   gGo: () => { const t = $("#gT").value.trim(), n = num($("#gN").value); if (!n) return;
-    const g = A._gk === "auto" ? {id:newId(), kind:"auto", exercise:$("#gEx").value, target:n, unit:"kg", title:t || ($("#gEx").value+" à "+fmt(n)+" kg")} : {id:newId(), kind:"manual", target:n, unit:$("#gU").value, current:0, title:t || ("Objectif "+fmt(n))};
+    const g = A._gk === "auto" ? {id:newId(), kind:"auto", exercise:$("#gEx").value, target:n, unit:"kg", title:t || ($("#gEx").value+" à "+fmt(n)+" kg")} :
+      A._gk === "reps" ? {id:newId(), kind:"reps", exercise:$("#gEx").value, target:Math.round(n), unit:"reps", title:t || (fmt(Math.round(n))+" reps en "+$("#gEx").value.toLowerCase())} : {id:newId(), kind:"manual", target:n, unit:$("#gU").value, current:0, title:t || ("Objectif "+fmt(n))};
     addGoal(g); closeSheet(); },
   delGoal: b => { const i = +b.dataset.i; openConfirm("Supprimer cet objectif ?", S.goals[i].title, "Supprimer", () => { S.goals.splice(i,1); saveState(); render(); }); },
   goalPlus: b => bumpGoal(+b.dataset.i, 1),
@@ -945,7 +981,7 @@ const A = {
   goalSet: b => { const g = S.goals[+b.dataset.i]; openSheet(`<h2>${esc(g.title)}</h2><label class="label" for="gV">Ton meilleur score</label><input id="gV" inputmode="decimal" value="${g.current ?? 0}"><button class="btn block" data-act="goalSetGo" data-i="${b.dataset.i}">Valider</button><button class="btn ghost block" data-act="closeSheet">Annuler</button>`); },
   goalSetGo: b => { const v = num($("#gV").value); if (v != null){ S.goals[+b.dataset.i].current = v; closeSheet(); afterGoalChange(); } }
 };
-function backupJSON(){ return JSON.stringify({app:"spololo", v:1, exportedAt:new Date().toISOString(), program:S.program, settings:S.settings, goals:S.goals, workouts:S.workouts}); }
+function backupJSON(){ return JSON.stringify({app:"spololo", v:1, exportedAt:new Date().toISOString(), program:S.program, settings:S.settings, goals:S.goals, library:S.library||[], workouts:S.workouts}); }
 function markBackup(){ S.settings.lastBackup = new Date().toISOString(); saveState(); render(); }
 async function doBackup(){
   const name = "spololo-sauvegarde-"+dkey(new Date())+".json", json = backupJSON();
@@ -965,7 +1001,7 @@ function importBackup(txt){
   const ids = new Set(S.workouts.map(w => w.id)), add = d.workouts.filter(w => w && w.id && !ids.has(w.id));
   openConfirm("Restaurer cette sauvegarde ?", `Sauvegarde du ${new Date(d.exportedAt||Date.now()).toLocaleDateString("fr-FR")} : ${d.workouts.length} séances, dont ${add.length} nouvelles ici. Tes séances actuelles sont gardées ; programme, objectifs et réglages sont remplacés par ceux de la sauvegarde.`, "Restaurer", () => {
     S.workouts = [...S.workouts, ...add].sort((a,b) => b.date.localeCompare(a.date));
-    if (d.program) S.program = withIds(d.program); if (Array.isArray(d.goals)) S.goals = d.goals;
+    if (d.program) S.program = withIds(d.program); if (Array.isArray(d.goals)) S.goals = d.goals; if (Array.isArray(d.library)) S.library = d.library;
     if (d.settings) S.settings = {...S.settings, ...d.settings};
     saveState(); add.forEach(w => saveWorkout(w)); render(); toast("✅","Sauvegarde restaurée", add.length+" séance(s) ajoutée(s)."); });
 }
@@ -980,6 +1016,7 @@ function reSettings(){ const y = $("#sheet").scrollTop; render(); A.settings(); 
 document.addEventListener("click", e => { const b = e.target.closest("[data-act]"); if (!b || b.disabled) return; const f = A[b.dataset.act]; if (f){ e.preventDefault(); f(b, e); } });
 document.addEventListener("input", e => {
   const t = e.target;
+  if (t.id === "pickQ"){ renderPick(t.value); return; }
   if (t.dataset.e && S.current){ const en = S.current.entries[+t.dataset.i], v = num(t.value); en[t.dataset.e] = t.dataset.e === "kg" ? v : (v == null ? null : Math.round(v));
     if (t.dataset.e === "rp"){ const f = t.closest(".fld"); f.classList.remove("isMax"); const mb = f.querySelector(".maxbtn"); mb && mb.classList.remove("on"); t.placeholder = "–"; }
     touch(); }
@@ -993,7 +1030,7 @@ document.addEventListener("change", e => {
   if (t.id === "exSel"){ progressEx = t.value; render(); }
   if (t.id === "importFile" && t.files && t.files[0]){ const r = new FileReader(); r.onload = () => importBackup(r.result); r.readAsText(t.files[0]); }
   if (t.dataset.swap != null && S.current){ const i = +t.dataset.swap;
-    if (t.value === "__other"){ t.value = S.current.entries[i].name; openSheet(`<h2>Autre exo</h2><input id="otherIn" placeholder="Nom de l'exo"><button class="btn block" data-act="otherGo" data-i="${i}">Remplacer</button><button class="btn ghost block" data-act="closeSheet">Annuler</button>`); setTimeout(() => { const el = $("#otherIn"); el && el.focus(); }, 50); }
+    if (t.value === "__other"){ t.value = S.current.entries[i].name; openPicker("Remplacer « "+S.current.entries[i].name+" »", n => { if (norm(n) !== norm(S.current.entries[i].name)) doSwap(i, n); }); }
     else if (norm(t.value) !== norm(S.current.entries[i].name)) doSwap(i, t.value); }
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) flush(); else if (rest.int) tickRest(); });
