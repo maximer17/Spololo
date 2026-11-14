@@ -39,7 +39,7 @@
   --shadow:rgba(0,0,0,.5); color-scheme:dark;
 }
 *{box-sizing:border-box}
-html{height:100%;background:var(--bg)}
+html{height:100%;background:var(--surface)}
 html,body{margin:0;overflow:hidden}
 body{position:fixed;inset:0;height:auto}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.4;font-weight:500;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column}
@@ -1050,8 +1050,6 @@ function fitScreen(){
   const portrait = innerHeight >= innerWidth, full = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width), gap = full - innerHeight;
   if (gap > 8 && gap < 200){ b.style.bottom = "auto"; b.style.height = full + "px"; document.documentElement.style.setProperty("--gap", gap + "px"); b.classList.add("gapfix"); }
 }
-window.addEventListener("resize", fitScreen); window.addEventListener("orientationchange", () => setTimeout(fitScreen, 300));
-fitScreen();
 loadLocal(); migrate(); S.program = withIds(S.program);
 if (S.current && S.workouts.some(w => w.id === S.current.id)) S.current = null;
 render(); askResume(); connect();
