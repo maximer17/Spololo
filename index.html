@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Spololo">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0F1013">
+<meta name="theme-color" id="themeColor" content="#0F1013">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -39,7 +39,9 @@
   --shadow:rgba(0,0,0,.5); color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;overflow:hidden}
+html{height:100%;background:var(--bg)}
+html,body{margin:0;overflow:hidden}
+body{position:fixed;inset:0;height:auto}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.4;font-weight:500;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column}
 button,input,select{font:inherit;color:inherit}
 h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;font-weight:700;letter-spacing:.01em}
@@ -668,6 +670,7 @@ function applyLook(){
   K.forEach(k => root.style.setProperty("--"+k, v[k])); root.style.setProperty("--ok", v.c);
   ["a","b","c","xp"].forEach(k => root.style.setProperty("--on-"+k, lum(v[k]) > .42 ? "#121316" : "#FFFFFF"));
   root.style.colorScheme = dark ? "dark" : "light";
+  const tc = document.getElementById("themeColor"); if (tc) tc.setAttribute("content", v.bg);
   const f = FONTS.find(x => x.id === st.font) || FONTS[0];
   root.style.setProperty("--font-display", f.d + ', system-ui, sans-serif');
   root.style.setProperty("--font-body", f.b + ', system-ui, -apple-system, sans-serif');
